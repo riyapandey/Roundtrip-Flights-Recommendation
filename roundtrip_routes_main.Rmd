@@ -1,0 +1,455 @@
+---
+title: "Capital One - DA Airline Data Challenge"
+author: "Riya Pandey"
+date: "2024-04-22"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE)
+```
+
+# Introduction
+
+This document serves as the central report for a comprehensive analysis of airline data aimed at identifying profitable and operationally efficient routes. It includes a detailed exploration of various data aspects, structured into modular components for enhanced clarity and reusability. Each module, encapsulated in its own R script, focuses on specific aspects of the data processing and analysis workflow.  
+Additionally, this RMarkdown file includes interpretations under each visualization that are the same as those found in the documentation document.
+
+## Data Analysis Workflow:
+
+The analysis is organized into several distinct modules, each designed to handle different stages of the data analysis process. This modular approach not only facilitates easier maintenance and updates but also enhances the readability and manageability of the analysis. Below is the sequence in which the modules are executed, with each script being sourced into this main RMarkdown document:
+
+- data_preprocessing.R: This script handles all the data cleaning and preparation tasks. It reads raw data files, cleanses them of inconsistencies, and prepares them for analysis.
+
+- data_joining.R: This script is responsible for combining the cleaned datasets into a coherent data frame that can be used for further analysis.
+
+- data_analysis.R: In this script, the data is subjected to various analytical procedures to extract meaningful insights and results.
+
+- plotting_functions.R: This script contains all the custom plotting functions that are used to generate visualizations from the analyzed data.
+
+The scripts must be run in the order listed above, as each script depends on the outputs of the previous one. 
+
+## Additional Resources in the file
+
+- **Documentation**: Detailed documentation of the processes, analysis methods, interpretation of results, and key insights. Each visualization is accompanied by a narrative that explains the insights derived from the data.
+
+- **Metadata**: Descriptions of new fields and data transformations that were created to complete the analysis.
+
+- **Public Tableau Dashboard**: Interactive dashboard that displays different data visualizations to provide a comprehensive overview of the airline’s performance across recommended routes.
+
+- **Dashboard Documentation**: This contains interpretation and analysis of the Public Tableau Dashboard
+
+
+# AIRLINE DATA ANALYSIS
+
+```{r}
+# Load necessary libraries for data manipulation, visualization, and statistical analysis
+library(tidyverse)  # For data manipulation and visualization
+library(lubridate)  # For date and time manipulation
+library(ggrepel)    # For non-overlapping text labels in plots
+library(scales)     # For formatting axes and labels in plots
+library(gridExtra)  # For arranging multiple plots in a grid
+library(reshape2)   # For reshaping data between wide and long formats
+```
+
+```{r}
+# Sourcing Modularized Scripts
+source("data_preprocessing.R") # Sourcing data preprocessing module
+source("data_joining.R") # Sourcing data joining module
+source("data_analysis.R") # Sourcing data analysis module
+source("plotting_functions.R") # Sourcing plotting functions module
+```
+
+# DATA PREPROCESSING:
+
+## Flights
+```{r}
+# Applying the developed functions to analyze flight data and derive actionable insights
+flights <- read_data("Flights.csv")
+flights <- flights %>% 
+  filter(CANCELLED == 0) # Focus on non-cancelled flights for accurate analysis
+
+str(flights) # To check data types
+
+# Checking for non-alphanumieric values in specific columns
+extract_unique_non_alphanumeric_parts(flights, "DISTANCE")
+extract_unique_non_alphanumeric_parts(flights, "AIR_TIME")
+
+# Extracting and cleaning up data fields
+flights <- parse_dates(flights, "FL_DATE", format_orders=c("ymd", "mdy"))
+flights <- convert_numeric(flights, c("AIR_TIME", "DISTANCE"))
+flights <- handle_na_nan(flights, c("AIR_TIME", "DISTANCE"))
+flights <- to_positive(flights, c("AIR_TIME", "DISTANCE"))
+```
+
+Visualized the count of the NA values and null values through bar graphs. 
+```{r}
+# Checking for and visualizing missing data
+na_flights <- check_na_and_empty_strings(flights)
+plot_bar(na_flights, "column_name", "na_count", "grey" , "Count of NAs", "Column Name", 
+         "NA counts per Column") 
+```
+This bar graph shows that numeric columns like 'AIR_TIME', 'ARR_DELAY', 'DISTANCE', and 'OCCUPANCY_RATE' has NA values in the flights dataset.  
+
+```{r}
+# Checking for and visualizing missing data
+plot_bar(na_flights, "column_name", "empty_string_count", "grey", "Count of Empty Strings", 
+         "Column Name", "Empty String Count per Column")
+```
+This bar graph shows that there are no null values in the character columns in the flights dataset.
+
+```{r}
+# Data imputation based on business logic
+flights <- impute_missing_values(flights, c("AIR_TIME", "DISTANCE"), 
+                                 c("ORIGIN", "DESTINATION"))
+flights <- na_proportions(flights, "OCCUPANCY_RATE", threshold = 0.05)
+flights <- impute_based_on_correlation(flights, "DEP_DELAY", "ARR_DELAY")
+
+# Removing duplicates for data integrity
+flights <- remove_duplicates(flights, columns = NULL)
+```
+
+```{r}
+# Skewness analysis and visualization for deeper understanding of data distribution
+calculate_skewness(flights, c("DEP_DELAY", "ARR_DELAY", "AIR_TIME", "DISTANCE", 
+                              "OCCUPANCY_RATE"))
+
+# Create histograms to visualize skewness
+flights_histogram_plots <- lapply(c("DEP_DELAY", "ARR_DELAY", "AIR_TIME", "DISTANCE", 
+                                    "OCCUPANCY_RATE"), function(col) {
+  plot_histograms(flights, col)
+})
+
+# Use grid.arrange() to arrange the plots in a grid
+grid.arrange(grobs = flights_histogram_plots, nrow = 2, ncol = 3)
+```
+Departure Delays (DEP_DELAY): The skewness calculation and histogram suggests that the skewness is positive but less than 1, suggesting a moderate right-skewed distribution. This indicates that while most flights depart on time or slightly delayed, there are a number of flights with significant delays. 
+Arrival Delays (ARR_DELAY): Also right-skewed, similar to departure delays. 
+Air Time (AIR_TIME): Skewness indicates a moderately right-skewed distribution 
+Distance (DISTANCE): Also shows a moderate right skew. 
+Occupancy Rate (OCCUPANCY_RATE): The skewness is very close to zero, which indicates a nearly symmetrical distribution, suggesting consistent occupancy rates across flights. 
+
+```{r}
+# Outlier detection and visualization to identify anomalies
+calculate_outliers(flights, c("DEP_DELAY", "ARR_DELAY", "AIR_TIME", "DISTANCE", 
+                              "OCCUPANCY_RATE"))
+
+# Creating boxplots to visualize outliers
+flights_boxplots <- lapply(c("DEP_DELAY", "ARR_DELAY", "AIR_TIME", "DISTANCE", 
+                             "OCCUPANCY_RATE"), function(col) {
+  plot_boxplots(flights, col)
+})
+
+# Use grid.arrange to arrange the plots in a grid
+grid.arrange(grobs = flights_boxplots, nrow = 2, ncol = 3)
+```
+DEP_DELAY: The distribution becomes tighter with reduced variability.
+ARR_DELAY: High variability with a wide range of delays, including extreme delays that could be several hours long.
+DISTANCE: Shows a broad range of flight distances, with extreme outliers possibly representing very long or unusually short routes.
+AIR_TIME: Outliers might be significantly influencing the average air time, with extreme values possibly due to delays, rerouting, or other operational issues.
+OCCUPANCY_RATE: The distribution shows that it might be nearly symmetric.
+
+```{r}
+# Capping outliers to reduce the effect of extreme values
+flights <- cap_outliers(flights, c("DEP_DELAY", "ARR_DELAY", "AIR_TIME", "DISTANCE"))
+```
+
+```{r}
+# Visualizing histograms after capping outliers
+flights_histogram_after_cap <- lapply(c("DEP_DELAY", "ARR_DELAY", "AIR_TIME", "DISTANCE"), 
+                                      function(col) {
+  plot_histograms(flights, col)
+})
+
+# Use grid.arrange() to arrange the plots in a grid
+grid.arrange(grobs = flights_histogram_after_cap, nrow = 2, ncol = 3)
+```
+For all variables, skewness has increased slightly after capping, especially for departure and arrival delays. This indicates that the distribution tails are a little bit heavier on the right, which could mean the capping method has concentrated more values at the higher end due to the removal of extreme values.
+
+```{r}
+# Visualizing boxplots after capping outliers
+flights_boxplots_after_cap <- lapply(c("DEP_DELAY", "ARR_DELAY", "AIR_TIME", "DISTANCE"), 
+                                     function(col) {
+  plot_boxplots(flights, col)
+})
+
+# Use grid.arrange to arrange the plots in a grid
+grid.arrange(grobs = flights_boxplots_after_cap, nrow = 2, ncol = 3)
+```
+DEP_DELAY: The effect of extreme delays is minimized, which makes the data more relevant for operational improvements.
+ARR_DELAY: The distribution becomes tighter with reduced variability.
+DISTANCE: The distribution now reflects a more realistic range of typical flight distances, potentially excluding extreme short-hop flights or ultra-long-haul flights that are not typical of normal operations.
+AIR_TIME: The distribution of flight durations becomes more representative of the majority of flights. The data now might exclude long air times due to exceptional circumstances, thus providing a clearer view of standard flight durations.
+
+
+```{r}
+# Summarizing the cleaned and processed flights data
+summary(flights)
+```
+Summary Statistics: The ranges for all variables have decreased significantly, with departure and arrival delays now having a maximum of just over 200 minutes. This means that the capping has removed the extreme delays from the dataset. Similarly, the air time and distance now have more reasonable maximum values.
+
+## Tickets 
+```{r}
+# Read ticket data and prepare it for analysis
+tickets <- read_data("Tickets.csv")
+tickets <- tickets %>% 
+  filter(ROUNDTRIP == 1) # Focusing on round trip data
+
+str(tickets) # To check data types
+
+# Basic data transformations and error handling
+tickets$YEAR <- convert_year_to_date(tickets$YEAR)
+tickets <- convert_numeric(tickets, c("ITIN_FARE"))
+tickets$QUARTER <- convert_to_character(tickets$QUARTER)
+```
+
+```{r}
+# # Checking for and visualizing missing data in tickets dataset
+na_tickets <- check_na_and_empty_strings(tickets)
+plot_bar(na_tickets, "column_name", "na_count", "grey", "Count of NAs", "Column Name", 
+         "NA counts per Column") 
+```
+This bar graph shows that numeric columns like 'PASSENGERS' and 'ITIN_FARE' has NA values in the tickets dataset.
+
+```{r}
+# Checking for and visualizing missing data in tickets dataset
+plot_bar(na_tickets, "column_name", "empty_string_count", "grey", 
+         "Count of Empty Strings", "Column Name", "Empty String Count per Column")
+```
+This bar graph shows that there are no null values in the character columns in the tickets dataset.
+
+```{r}
+# Imputation and cleanup of ticket data to ensure robust dataset for analysis
+tickets <- na_proportions(tickets, "PASSENGERS", threshold = 0.05)
+tickets <- impute_missing_values(tickets, "ITIN_FARE", c("ORIGIN", "DESTINATION"))
+tickets <- remove_duplicates(tickets, columns = NULL)
+```
+
+```{r}
+# Analyzing data distribution in tickets data for fare and passenger numbers
+calculate_skewness(tickets, c("ITIN_FARE", "PASSENGERS"))
+
+# Create histograms to visualize skewness
+tickets_histogram_plots <- lapply(c("ITIN_FARE", "PASSENGERS"), function(col) {
+  plot_histograms(tickets, col)
+})
+
+# Use grid.arrange() to arrange the plots in a grid
+grid.arrange(grobs = tickets_histogram_plots, nrow = 1, ncol = 2)
+```
+Itinerary Fare (ITIN_FARE): Looking at the skewness calculation and histogram, the skewness for ITIN_FARE is moderately positive.
+Passengers: The skewness is slightly higher but still moderate, which suggests a somewhat more uneven distribution, with a few flights carrying many more passengers than average.
+
+```{r}
+# Identifying and visualizing outliers in ticket pricing and passenger numbers
+calculate_outliers(tickets, c("ITIN_FARE", "PASSENGERS"))
+
+# Creating boxplots to visualize outliers
+tickets_boxplots <- lapply(c("ITIN_FARE", "PASSENGERS"), function(col) {
+  plot_boxplots(tickets, col)
+})
+
+# Use grid.arrange to arrange the plots in a grid
+grid.arrange(grobs = tickets_boxplots, nrow = 1, ncol = 2)
+```
+ITIN_FARE and PASSENGERS: The distribution looks tighter with with extreme reduced variability. There are also extreme outliers.
+
+```{r}
+# Adjusting extreme values in fare and passenger data
+tickets <- cap_outliers(tickets, c("ITIN_FARE", "PASSENGERS"))
+```
+
+```{r}
+# Visualizing histograms after capping outliers
+tickets_histogram_after_cap <- lapply(c("ITIN_FARE", "PASSENGERS"), function(col) {
+  plot_histograms(tickets, col)
+})
+
+# Use grid.arrange() to arrange the plots in a grid
+grid.arrange(grobs = tickets_histogram_after_cap, nrow = 1, ncol = 2)
+```
+There's a slight increase in skewness for ITIN_FARE and histogram looks more distributed and a more significant increase for PASSENGERS after capping, indicating that capping has slightly intensified the rightward tail in the distribution of fares and has notably done so for passenger numbers. 
+
+```{r}
+# Visualizing boxplots after capping outliers
+tickets_boxplots_after_cap <- lapply(c("ITIN_FARE", "PASSENGERS"), function(col) {
+  plot_boxplots(tickets, col)
+})
+
+# Use grid.arrange to arrange the plots in a grid
+grid.arrange(grobs = tickets_boxplots_after_cap, nrow = 1, ncol = 2)
+```
+ITIN_FARE: The data reflects more common fare ranges after capping and shows more variance.
+PASSENGERS:The distribution normalizes around typical passenger counts, excluding extreme values that could represent group bookings or charters.
+
+```{r}
+# Final summarization of tickets data post-cleanup and analysis
+summary(tickets)
+```
+ITIN_FARE: Post-capping, the maximum fare has been reduced to $1655 from values that may have been significantly higher, eliminating extreme high fares which likely included anomalies or luxury service fares.
+PASSENGERS: The mean slightly increased, and the maximum number of passengers is now capped at 17, suggesting that the dataset might have included group bookings or larger party bookings that are now removed from the dataset, simplifying the overall analysis.
+
+
+## Airport_Codes
+```{r}
+# Load and clean airport codes data for analysis
+airport_codes <- read_data("Airport_Codes.csv")
+airport_codes <- airport_codes %>% 
+  filter(TYPE %in% c("medium_airport", "large_airport"), 
+         ISO_COUNTRY == 'US') # Focusing on relevant US airport types
+
+str(airport_codes) # To check data types
+
+# Convert geographic coordinates into usable format for analysis
+airport_codes <- coordinates_conversion(airport_codes, "COORDINATES")
+```
+
+```{r}
+# Check and visualize missing or incomplete data in tickets dataset
+na_airportcodes <- check_na_and_empty_strings(airport_codes)
+plot_bar(na_airportcodes, "column_name", "na_count", "grey", "Count of NAs", 
+         "Column Name", "NA counts per Column") 
+```
+This bar graph shows that numeric column like 'ELEVATION_FT' has NA values in the airport_codes dataset.
+
+```{r}
+# Check and visualize missing or incomplete data in tickets dataset
+plot_bar(na_airportcodes, "column_name", "empty_string_count", "grey", 
+         "Count of Empty Strings", "Column Name", "Empty String Count per Column")
+```
+This bar graph shows that character columns like 'CONTINENT', 'IATA_CODE' and 'MUNICIPALITY' has missing values in the airport_codes dataset.
+
+```{r}
+# Handling missing elevation data and cleaning character columns
+airport_codes <- filter_out_nas(airport_codes, "ELEVATION_FT")
+airport_codes <- character_columns_nas(airport_codes, c("MUNICIPALITY", "IATA_CODE"))
+
+# Removing duplicates to ensure data integrity
+airport_codes <- remove_duplicates(airport_codes, columns = NULL)
+
+# Summary of cleaned and processed airport codes data
+summary(airport_codes)
+```
+
+
+# JOINING
+
+```{r}
+# Generate the final processed data 
+final_data <- process_flight_data(flights, airport_codes, tickets)
+
+# Remove any duplicates to ensure data integrity
+final_data <- remove_duplicates(final_data, columns = NULL) 
+```
+
+
+**Task 1: The 10 busiest round trip routes in terms of number of round trip flights in the quarter**
+```{r}
+# Execute the function to find the top 10 busiest routes and visualize
+busiest_10_roundtrips <- find_busiest_routes(final_data)
+
+plot_bar(busiest_10_roundtrips, "ROUNDTRIP_ROUTE", "TOTAL_ROUNDTRIP_FLIGHTS", "steelblue", 
+         "Total Flights", "Round Trip Route", "10 Busiest Round Trip Routes")
+```
+The bar chart identifies the routes with the highest number of round trip flights during the first quarter of 2019. High flight frequency typically indicates strong passenger demand and operational importance of these routes. For instance, the LAX-SFO route, with 4,170 round trips, suggests a major corridor of travel likely driven by business and tourism. Similarly, routes like LGA-ORD and LAS-LAX also show high traffic, pointing to their strategic importance for the airline network. This information is crucial for the airline as it indicates where resources and capacity are most utilized, guiding decisions on where to focus service enhancements or additional capacity.
+
+
+**Task 2: The 10 most profitable round trip routes in the quarter**
+```{r}
+# Calculate and summarize financial data, then visualize the most profitable routes
+financial_data <- calculate_financial_metrics(final_data)
+
+top_profitable_routes <- summarize_top_routes(financial_data)
+
+plot_segment(top_profitable_routes, "ROUNDTRIP_ROUTE", "TOTAL_PROFIT", 
+             "10 Most Profitable Round Trip Routes", "Round Trip Route", "Total Profit ($)")
+```
+The scatter plot provides a clear picture of which routes are not just popular but also most financially beneficial to the airline. For example, JFK-LAX tops the list with a total profit of approximately $250 million, supported by substantial total revenue. The profitability data, combined with the number of flights, revenue, and costs, helps identify routes that maximize financial returns. Routes like DCA-ORD and DCA-LGA also show strong profitability, suggesting efficient management and pricing strategies that capitalize on demand. This profitability assessment is pivotal for the airline to prioritize investments and marketing efforts, ensuring resources are allocated to the most lucrative routes. This visualization indicates that while some routes may not be the busiest, they effectively translate traffic into revenue, potentially due to higher fare prices or efficient cost management.
+
+
+**Task 3: The 5 round trip routes that you recommend to invest in**
+```{r}
+# Process and recommend routes for investment
+route_summary <- process_and_summarize_routes(financial_data)
+
+recommended_roundtrips <- recommend_routes(route_summary, 5)
+
+# Create a bar graph to visualize recommended routes
+plot_bar(recommended_roundtrips, "ROUNDTRIP_ROUTE", "TOTAL_PROFIT", "#69b3a2",
+                  "Top 5 Recommended Routes", "Round Trip Route", "Total Profit", add_text = TRUE,
+         text_var = "paste('On-time: ', round(COMBINED_ON_TIME_PCT, 1), '%')")
+```
+The bar chart shows selection of recommended routes is based on a multifaceted evaluation of profitability, on-time performance, revenue-to-cost efficiency, delay costs, and occupancy rates, where profitability and on-tie performance are ranked the highest and displayed in the visualization For example, JFK-LAX not only has high profitability but also an excellent on-time performance rate of approximately 84.37%, making it a reliable and financially sound route for investment.
+
+
+```{r}
+# Create a series of bar plots to visualize various metrics for recommended round trip routes
+
+# Displays total profit for each recommended roundtrip route
+plot1 <- plot_bar(recommended_roundtrips, "ROUNDTRIP_ROUTE", "TOTAL_PROFIT", 
+                  "lightblue", "Total Profit", "Round Trip Route", "")
+
+# Displays the percentage of on-time flights for each roundtrip route
+plot2 <- plot_bar(recommended_roundtrips, "ROUNDTRIP_ROUTE", "COMBINED_ON_TIME_PCT",
+                  "steelblue", "On time %", "Round Trip Route", "")
+
+# Displays the average delay cost per roundtrip route
+plot3 <- plot_bar(recommended_roundtrips, "ROUNDTRIP_ROUTE", "AVG_DELAY_COST", 
+                  "lightgreen", "Avg Delay Cost", "Round Trip Route", "")
+
+# Displays the average occupancy rate for each roundtrip route
+plot4 <- plot_bar(recommended_roundtrips, "ROUNDTRIP_ROUTE", "AVG_OCCUPANCY_RATE", 
+                  "lightpink", "Avg Occupancy Rate", "Round Trip Route", "")
+
+# Displays the average revenue to cost ratio
+plot5 <- plot_bar(recommended_roundtrips, "ROUNDTRIP_ROUTE", "AVG_REVENUE_TO_COST_RATIO", 
+                  "lightgrey", "Avg Revenue to Cost Ratio", "Round Trip Route", "") 
+
+# Arrange in grid layout for a comprehensive visual comparison across major performance metrics.
+grid.arrange(plot1, plot2, plot3, plot4, plot5, ncol = 3, nrow = 2)
+```
+The set of bar charts provides insights into various performance metrics that was considered to recommend the five round trip routes:
+
+**Total Profit**: JFK-LAX stands out with the highest profit, significantly more than the other routes, which indicates strong revenue generation, possibly due to high demand or premium pricing strategies.
+**On-time %**: This metric appears relatively consistent across all routes, indicating that operational performance regarding punctuality doesn’t significantly vary between them. This uniformity can suggest that customers can expect reliable service in terms of timeliness on these routes.
+**Average Delay Cost**: There’s more variation here, with LAX-SFO incurring the highest delay costs. JFK-LAX shows the lowest delay costs, aligning with its high profitability and suggesting efficient operations.
+**Average Occupancy Rate**: The rates are consistently high across all routes, indicating none are struggling to attract passengers. High occupancy is a good sign of route popularity and effective capacity management.
+**Avergae Revenue to Cost Ratio**: JFK-LAX, while not the highest, still demonstrates a healthy ratio, suggesting that it's a financially sound route, confirming the previous analysis that it is a high-profit option.  
+
+The high average revenue-to-cost ratio, especially on routes like DCA-LGA, indicates that these routes are not just covering their operational costs but are doing so very efficiently, yielding more revenue per dollar of cost than other routes. This detailed analysis ensures that the recommended routes align with the airline’s operational goals and brand promise of punctuality ("On time, for you").
+
+
+```{r}
+# Pie chart visualisation for distribution of profits for the recommended round trips
+plot_pie_chart(recommended_roundtrips, "TOTAL_PROFIT", "ROUNDTRIP_ROUTE", 
+               "Distribution of Profits for Roundtrip Routes")
+```
+The pie chart illustrates the distribution of profits among different roundtrip routes for an airline. Each segment of the pie chart represents the percentage of total profits attributed to a specific route.
+
+**JFK-LAX**: This route is the most profitable, making up 29.21% of total profits. This could indicate high passenger demand, higher fares, more frequent flights, or a combination of these factors leading to higher profitability on this route.
+**LAX-SFO**: Following closely, this route accounts for 18.93% of the profits.
+**DCA-ORD**: Holding 17.65% of profits, this suggests that the route is also a key revenue generator.
+**ATL-LGA**: With 17.19% of the profits, followed by DCA-LGA at 17.01% of the profits.  
+
+For an airline, understanding which routes are most profitable can inform decisions about where to allocate resources, such as more flights, bigger planes, or promotional offers. It helps to identify which routes could be expanded or improved for better profitability.
+
+
+**Task 4: The number of round trip flights it will take to breakeven on the upfront airplane cost for each of the 5 round trip routes that you recommend**
+```{r}
+# Specify airplane cost, compute breakeven flights, and visualize with a scatter plot
+
+airplane_cost <- 90000000  # Cost of the airplane in dollars
+
+breakeven_roundtrips <- calculate_breakeven(recommended_roundtrips, airplane_cost)
+
+plot_scatter_label(breakeven_roundtrips, PROFIT_PER_FLIGHT, BREAKEVEN_FLIGHTS, 
+                   ROUNDTRIP_ROUTE, "Profit per Flight vs. Break-even Flights", 
+                   "Profit per Flight ($)", 
+                   "Break-even Flights", x_scale_dollar = TRUE)
+
+b <- breakeven_roundtrips %>% 
+  select(ROUNDTRIP_ROUTE, BREAKEVEN_FLIGHTS)
+```
+The breakeven analysis, as shown in bubble chart, shows how many flights each route needs to operate to recover the cost of a $90 million airplane. JFK-LAX, for example, requires about approximately 1000 round trips to breakeven, which is feasible considering its high total profit and number of flights. This kind of analysis is critical for financial planning and investment decisions, providing a clear metric for how long it will take to see a return on new aircraft. Routes like LAX-SFO, despite their high traffic, require more flights to breakeven due to lower profit per flight, indicating that not all busy routes are equally profitable.

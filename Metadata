@@ -1,0 +1,30 @@
+Metadata
+
+LATITUDE_ORIGIN: The geographic latitude of the origin airport. 
+LONGITUDE_ORIGIN: The geographic longitude of the origin airport.
+LATITUDE_DESTINATION: The geographic latitude of the destination airport.
+LONGITUDE_DESTINATION: The geographic longitude of the destination airport.
+ROUNDTRIP_ROUTE: A string identifier that combines the origin and destination airport codes, treating routes such as A-B and B-A equivalently to reflect the roundtrip nature.
+AVG_ITIN_FARE: The average itinerary fare per person for a round trip on a specific route.
+PASSENGERS_ROUNDTRIP: Total number of passengers for round trips on the route, calculated as occupancy rate times 200 seats times 2.
+DISTANCE_ROUNDTRIP: Total distance flown in a complete round trip, calculated as twice the one-way distance between the origin and destination airports.
+DELAY_COST_DEP: Cost incurred from departure delays beyond the first 15 minutes, calculated at a rate of $75 per minute.
+DELAY_COST_ARR: Cost incurred from arrival delays beyond the first 15 minutes, also at $75 per minute.
+DELAY_COST: Total cost associated with both departure and arrival delays.
+FIXED_COST: Combined cost of airport operational charges for both the origin and destination airports, dependent on airport size (medium or large).
+VARIABLE_COST_1: Costs related to fuel, oil, maintenance, and crew, calculated per mile.
+VARIABLE_COST_2: Costs covering depreciation, insurance, and other miscellaneous expenses, also calculated per mile.
+VARIABLE_COST: Sum of VARIABLE_COST_1 and VARIABLE_COST_2.
+TOTAL_COST: Sum of all costs associated with operating the round trip flight, including fixed, variable, and delay costs.
+TICKETS_REVENUE: Total revenue generated from ticket sales for the route, accounting for the number of passengers and the average ticket price.
+BAGGAGE_FEE: Additional revenue generated from baggage fees. Assumes 50% of passengers check bags, with each charged $70 for a round trip.
+TOTAL_REVENUE: The sum of ticket revenue and baggage fees.
+PROFIT: Total profit for the route, calculated as total revenue minus total cost.
+TOTAL_ROUNDTRIP_FLIGHTS: The total number of completed round trip flights for the route within the specified time period.
+AVG_REVENUE_TO_COST_RATIO: The average ratio of total revenue to total cost.
+ON_TIME_DEP_PCT: Percentage of flights departing within 15 minutes of their scheduled departure time.
+ON_TIME_ARR_PCT: Percentage of flights arriving within 15 minutes of their scheduled arrival time.
+COMBINED_ON_TIME_PCT: Average of ON_TIME_DEP_PCT and ON_TIME_ARR_PCT, representing overall punctuality.
+AVG_OCCUPANCY_RATE: Average percentage of seats filled per flight.
+PROFIT_PER_FLIGHT: The average profit made per individual flight on a specific round trip route, calculated by dividing the total profit made on the route by the total number of flights on that route within the specified time period. 
+BREAKEVEN_FLIGHTS: The minimum number of flights required for the profit from a specific round trip route to cover the upfront cost of purchasing a new airplane for that route. Calculated by dividing the cost of the airplane by the PROFIT_PER_FLIGHT, and then rounding up to the nearest whole number as partial flights are not feasible.
