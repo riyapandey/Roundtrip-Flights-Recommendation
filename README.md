@@ -5,7 +5,7 @@
   <img width="500" alt="image" src="https://github.com/riyapandey/Roundtrip-Flights-Recommendation/assets/11988564/b6d74a39-898c-4312-8213-50ce39049718">
 </p>
 
-Link to Dashboard: [Link](https://github.com/riyapandey/Roundtrip-Flights-Recommendation/assets/11988564/a91afcb1-74ce-4617-a00f-5310b438ab62)
+[Link to Dashboard](https://github.com/riyapandey/Roundtrip-Flights-Recommendation/assets/11988564/a91afcb1-74ce-4617-a00f-5310b438ab62)
 
 ----------------------------------------------------------------------------------------------------------
 CONTENTS:
