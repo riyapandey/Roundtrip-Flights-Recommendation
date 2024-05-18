@@ -1,8 +1,9 @@
 
                                                 
                                                 FLIGHT ROUNDTRIP RECOMMENDATIONS
-
-<img width="500" alt="image" src="https://github.com/riyapandey/Roundtrip-Flights-Recommendation/assets/11988564/b6d74a39-898c-4312-8213-50ce39049718">
+<p align="center">
+  <img width="500" alt="image" src="https://github.com/riyapandey/Roundtrip-Flights-Recommendation/assets/11988564/b6d74a39-898c-4312-8213-50ce39049718">
+</p>
 
 ----------------------------------------------------------------------------------------------------------
 CONTENTS:
